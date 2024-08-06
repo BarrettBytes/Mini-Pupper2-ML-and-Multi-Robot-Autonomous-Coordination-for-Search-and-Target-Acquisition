@@ -1,4 +1,4 @@
-Please be sure that you have completed the tasks in the following before doing this  [NetworkSetup.md](NetworkSetup.md), [ROS_install_on_pupper_device.md](ROS_install_on_pupper_device.md), [Time_Sync.md](Time_Sync.md)
+Please be sure that you have completed the tasks in the following before doing this  [NetworkSetup.md](NetworkSetup.md), [ROS_on_pc.md](ROS_on_pc.md), [ROS_install_on_pupper_device.md](ROS_install_on_pupper_device.md), [Time_Sync.md](Time_Sync.md)
 
 ## SLAM (Mapping)
 

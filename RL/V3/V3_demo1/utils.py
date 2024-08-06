@@ -40,18 +40,91 @@ def get_frame(env, dog_image, cat_image, robot_image):
 
     return frame
 
+def frames_are_different(frame1, frame2, threshold=0.01):
+    """
+    Compare two frames to check if they are significantly different.
+    
+    :param frame1: First frame (numpy array)
+    :param frame2: Second frame (numpy array)
+    :param threshold: Difference threshold (0-1 range, default 0.01)
+    :return: True if frames are different, False otherwise
+    """
+    if frame1 is None or frame2 is None:
+        return True
+    
+    # Ensure both frames are in the same format
+    frame1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2GRAY)
+    frame2 = cv2.cvtColor(frame2, cv2.COLOR_RGB2GRAY)
+    
+    diff = cv2.absdiff(frame1, frame2)
+    non_zero_count = np.count_nonzero(diff)
+    total_pixels = frame1.shape[0] * frame1.shape[1]
+    
+    return (non_zero_count / total_pixels) > threshold
+
+def add_frame_to_video(out, environment, episode, last_frame=None):
+    if environment.use_pygame:
+        frame = environment.get_frame()
+        frame_array = pygame.surfarray.array3d(frame).swapaxes(0, 1)
+    else:
+        frame = Image.new('RGB', (environment.grid_width, environment.grid_height), color='white')
+        draw = ImageDraw.Draw(frame)
+        
+        # Draw obstacles
+        for obs_pos in environment.obstacle_positions:
+            x0, y0 = obs_pos[1] * environment.cell_width, obs_pos[0] * environment.cell_height
+            draw.rectangle([x0, y0, x0 + environment.cell_width, y0 + environment.cell_height], fill='gray')
+        
+        # Draw dogs
+        for dog_pos in environment.dog_positions:
+            x0, y0 = dog_pos[1] * environment.cell_width, dog_pos[0] * environment.cell_height
+            draw.rectangle([x0, y0, x0 + environment.cell_width, y0 + environment.cell_height], fill='red')
+        
+        # Draw cats
+        for i, cat_pos in enumerate(environment.cat_positions):
+            if not environment.found_cats[i]:
+                x0, y0 = cat_pos[1] * environment.cell_width, cat_pos[0] * environment.cell_height
+                draw.rectangle([x0, y0, x0 + environment.cell_width, y0 + environment.cell_height], fill='green')
+        
+        # Draw robot
+        x0, y0 = environment.position[1] * environment.cell_width, environment.position[0] * environment.cell_height
+        draw.rectangle([x0, y0, x0 + environment.cell_width, y0 + environment.cell_height], fill='blue')
+        
+        frame_array = np.array(frame)
+
+    frame_array_bgr = cv2.cvtColor(frame_array, cv2.COLOR_RGB2BGR)
+
+    if last_frame is None or frames_are_different(frame_array, last_frame):
+        out.write(frame_array_bgr)
+        return frame_array
+    
+    return last_frame
+
 def save_video(frames, filename, fps=10):
     if not frames:
         print("No frames to save.")
         return
     
-    height, width = frames[0].get_height(), frames[0].get_width()
+    # Check if the first frame is a Pygame surface or numpy array
+    if isinstance(frames[0], pygame.Surface):
+        # Convert the first frame to get dimensions
+        first_frame = surface_to_array(frames[0])
+    else:
+        first_frame = frames[0]
+    
+    height, width = first_frame.shape[:2]
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     video = cv2.VideoWriter(filename, fourcc, fps, (width, height))
     
+    last_frame = None
     for frame in frames:
-        frame_array = pygame.surfarray.array3d(frame).transpose([1, 0, 2])
-        video.write(cv2.cvtColor(frame_array, cv2.COLOR_RGB2BGR))
+        if isinstance(frame, pygame.Surface):
+            frame = surface_to_array(frame)
+        
+        if last_frame is None or frames_are_different(frame, last_frame):
+            video.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+            last_frame = frame
+    
     video.release()
 
 def save_plot(performance, filename):
@@ -84,38 +157,6 @@ def ensure_numpy_image(image):
     if isinstance(image, pygame.Surface):
         return surface_to_array(image)
     return image
-
-def add_frame_to_video(out, environment, episode):
-    if environment.use_pygame:
-        frame = environment.get_frame()
-        frame_array = pygame.surfarray.array3d(frame).swapaxes(0, 1)
-    else:
-        frame = Image.new('RGB', (environment.grid_width, environment.grid_height), color='white')
-        draw = ImageDraw.Draw(frame)
-        
-        # Draw obstacles
-        for obs_pos in environment.obstacle_positions:
-            x0, y0 = obs_pos[1] * environment.cell_width, obs_pos[0] * environment.cell_height
-            draw.rectangle([x0, y0, x0 + environment.cell_width, y0 + environment.cell_height], fill='gray')
-        
-        # Draw dogs
-        for dog_pos in environment.dog_positions:
-            x0, y0 = dog_pos[1] * environment.cell_width, dog_pos[0] * environment.cell_height
-            draw.rectangle([x0, y0, x0 + environment.cell_width, y0 + environment.cell_height], fill='red')
-        
-        # Draw cats
-        for i, cat_pos in enumerate(environment.cat_positions):
-            if not environment.found_cats[i]:
-                x0, y0 = cat_pos[1] * environment.cell_width, cat_pos[0] * environment.cell_height
-                draw.rectangle([x0, y0, x0 + environment.cell_width, y0 + environment.cell_height], fill='green')
-        
-        # Draw robot
-        x0, y0 = environment.position[1] * environment.cell_width, environment.position[0] * environment.cell_height
-        draw.rectangle([x0, y0, x0 + environment.cell_width, y0 + environment.cell_height], fill='blue')
-        
-        frame_array = np.array(frame)
-
-    out.write(cv2.cvtColor(frame_array, cv2.COLOR_RGB2BGR))
 
 def add_plot_to_video(out, plot_filename):
     plot_img = cv2.imread(plot_filename)

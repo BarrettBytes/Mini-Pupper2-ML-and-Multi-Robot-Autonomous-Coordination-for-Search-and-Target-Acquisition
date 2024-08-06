@@ -52,3 +52,22 @@ This step ensures that the new rules are applied.
 ## Additional Information
 
 After following these steps, the spatial example should run more reliably on your Mini Pupper, with improved stability and automatic restart capability in case of errors.
+
+## V3 RL update
+
+Note we have updated to mobilenetSSD so now u have to do this
+ **Setup and modify the example script:**
+   - Navigate to the example directory:
+     ```
+     sudo nano /opt/ros/humble/share/depthai_examples/launch/monitor_and_restart_mobile.py
+     ```
+   - Then copy the code from the `monitor_and_restart_mobile.py` in this repository into there.
+
+**Add PASCAL NAMES:**
+   - Navigate to the example directory:
+     ```
+     sudo nano /opt/ros/humble/share/depthai_examples/launch/PASCAL.names
+     ```
+   - Then copy the code from the `PASCAL.names` in this repository into there.
+
+

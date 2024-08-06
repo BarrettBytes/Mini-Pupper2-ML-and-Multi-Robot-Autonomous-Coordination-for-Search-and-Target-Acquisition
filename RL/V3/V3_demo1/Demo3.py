@@ -474,6 +474,24 @@ class SQLiteDatabaseHandler:
                 cache = cache[batch_size:]
                 yield batch
 
+    def get_expert_data_count(self):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM expert_data")
+                return cursor.fetchone()[0]
+        except sqlite3.OperationalError:
+            return 0  # Return 0 if the table doesn't exist
+
+    def insert_expert_data(self, episode_data):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.executemany('''
+                INSERT INTO expert_data (state_sequence, action_index, reward, next_state)
+                VALUES (?, ?, ?, ?)
+            ''', episode_data)
+            conn.commit()
+
 class AntiRepetitionMixin:
     """
     Prevent repetition in expert data
@@ -775,6 +793,9 @@ class TrainingModel:
         # use adam optimiser for training
         self.optimizer = optim.Adam(self.policy.parameters(), lr=0.001)
     
+    def set_db(self, db_name):
+        DB_PATH = db_name
+
     def train_on_batch(self, batch, curriculum=False):
         """
         Train the model on a batch of data.
@@ -833,7 +854,7 @@ class TrainingModel:
     def get_policy(self):
         return self.policy
 
-    def train(self, redo_short_context = False, num_iterations=1000, batch_size=16, second_phase=False, second_phase_iterations=0):
+    def train(self, redo_short_context = False, num_iterations=1000, batch_size=16, second_phase=False, second_phase_iterations=0, second_phase_max_attempts = 100, second_phase_move_count=500, visualise_phase_two=True):
         """
         Train the model.
         Parameters:
@@ -866,7 +887,7 @@ class TrainingModel:
                 train_short_context_network(self, SimulationGridEnvironment(), batch_size=64)
 
         if second_phase:
-            self.train_phase_two(second_phase_iterations, cats_count=3, dogs_count=3)
+            self.train_phase_two(num_iterations=second_phase_iterations, cats_count=3, dogs_count=3, max_attempts=second_phase_max_attempts, max_move_count=second_phase_move_count, visualise=visualise_phase_two)
 
     def parse_row(self, row):
         """
@@ -915,17 +936,16 @@ class TrainingModel:
                 done = True
 
         return episode_data, env.cats_reached
-
-
+ 
     @staticmethod
-    def mp_generate_episode(env_params, model_params, state_dict, custom_positions=None, cats_count=3, dogs_count=3):
+    def mp_generate_episode(env_params, model_params, state_dict, custom_positions=None, cats_count=3, dogs_count=3, max_move_count = 500, timeout = 5):
         """
         Generate an episode using multiprocessing.
         """
         try:
             env = SimulationGridEnvironment(**env_params)
             env.reset(custom_positions=custom_positions, cats_count=cats_count, dogs_count=dogs_count)
-            
+            start_time = time.time()
             # Create a DualNetworkPolicy instance and keep it on CPU
             policy = DualNetworkPolicy(**model_params)
             policy.load_state_dict(state_dict)
@@ -941,7 +961,7 @@ class TrainingModel:
             times_completed = 0
             dogs_encountered = 0
 
-            while move_count < 500 and env.dogs_reached == 0:
+            while move_count < max_move_count and env.dogs_reached == 0 and time.time() - start_time < timeout:
                 if env.cats_reached == cat_count:
                     env.reset(custom_positions=custom_positions, cats_count=cats_count, dogs_count=dogs_count)
                     times_completed += 1
@@ -972,7 +992,7 @@ class TrainingModel:
             print(f"Error in mp_generate_episode: {e}")
             return [], 0, 0
             
-    def parallel_generate_episodes(self, num_episodes, env_params, cats_count=3, dogs_count=3, timeout=60):
+    def parallel_generate_episodes(self, num_episodes, env_params, cats_count=3, dogs_count=3, timeout = 5, max_move_count = 500):
         """
         Generate multiple episodes in parallel using multiprocessing.
         Parameters:
@@ -987,22 +1007,19 @@ class TrainingModel:
         state_dict = self.policy.state_dict()
         # Move model back to original device
         self.policy.to(self.device)
-
         with mp.Pool(processes=min(mp.cpu_count(), 4)) as pool:
             results = []
             custom_positions_list = [self.generate_custom_positions(env_params['size'], cats_count, dogs_count) for _ in range(num_episodes)]
 
             for custom_positions in custom_positions_list:
-                result = pool.apply_async(self.mp_generate_episode, (env_params, model_params, state_dict, custom_positions, cats_count, dogs_count))
+                result = pool.apply_async(self.mp_generate_episode, (env_params, model_params, state_dict, custom_positions, cats_count, dogs_count, max_move_count, timeout))
                 try:
-                    episode_data, cats_reached, dogs_encountered = result.get(timeout=timeout)
+                    episode_data, cats_reached, dogs_encountered = result.get()
                     results.append((episode_data, cats_reached, dogs_encountered))
-                except mp.TimeoutError:
-                    print(f"Episode generation timed out after {timeout} seconds")
                 except Exception as e:
                     print(f"Error generating episode: {e}")
             return results
-        
+
     def generate_custom_positions(self, size, cats_count, dogs_count):
         """
         Generate custom positions for initializing the grid.
@@ -1017,7 +1034,7 @@ class TrainingModel:
             'robot_direction': env.direction
         }
 
-    def train_phase_two(self, num_iterations=1000, batch_size=16, max_attempts=100, cats_count=3, dogs_count=3):
+    def train_phase_two(self, num_iterations=1000, batch_size=16, max_attempts=100, cats_count=3, dogs_count=3, max_move_count=500, visualise = True):
         """
         Undertake traditional RL for a certain amount of iterations starting with the model in its current state
         use max attempts to run in parrallel training on best runs
@@ -1034,7 +1051,7 @@ class TrainingModel:
         clock = None
 
         while successful_episodes < num_iterations:
-            should_visualise = (successful_episodes % 5 == 0)
+            should_visualise = (successful_episodes % 5 == 0) and visualise
 
             if should_visualise:
                 print(f"Generating and visualising episode {successful_episodes}")
@@ -1044,11 +1061,11 @@ class TrainingModel:
                     pygame.display.set_caption('Live Training')
                     clock = pygame.time.Clock()
                 self.vis_env.reset(cats_count=cats_count, dogs_count=dogs_count)
-                episode_data, cats_reached, dogs_encountered = self.generate_episode_with_visualisation(self.vis_env, display, clock)
+                episode_data, cats_reached, dogs_encountered = self.generate_episode_with_visualisation(self.vis_env, display, clock, max_move_count)
                 results = [(episode_data, cats_reached, dogs_encountered)]
             else:
                 print(f"Generating {max_attempts} episodes using multiprocessing")
-                results = self.parallel_generate_episodes(max_attempts, env_params, cats_count, dogs_count)
+                results = self.parallel_generate_episodes(max_attempts, env_params, cats_count, dogs_count, max_move_count=max_move_count)
 
             if results:
                 best_episode_data, best_cats_reached, best_dogs_encountered = max(results, key=lambda x: x[1])
@@ -1083,7 +1100,7 @@ class TrainingModel:
             pygame.quit()
         print("Phase two training complete.")  
 
-    def generate_episode_with_visualisation(self, env: SimulationGridVisualisationEnvironment, display, clock):
+    def generate_episode_with_visualisation(self, env: SimulationGridVisualisationEnvironment, display, clock, max_move_count = 500):
         """
         visualise in pygame
         """
@@ -1093,7 +1110,7 @@ class TrainingModel:
         cat_count = len(env.cat_positions)
         dogs_encountered = 0
 
-        while not done and move_count < 500 and env.dogs_reached == 0 and env.cats_reached < cat_count:
+        while not done and move_count < max_move_count and env.dogs_reached == 0 and env.cats_reached < cat_count:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -1119,7 +1136,7 @@ class TrainingModel:
 
         pygame.time.wait(2000)  # Wait for 2 seconds at the end of the episode
         return episode_data, env.cats_reached, dogs_encountered
-    
+        
 def evaluate_policy(env, policy, num_episodes=10, cats_needed=1, grid_size=6, cats_count=2, dogs_count=2):
     """
     evaluate quality of policy

@@ -23,4 +23,10 @@ cd depthai_examples/launch/share/depthai_examples/launch
 python3 /opt/ros/humble/share/depthai_examples/launch/monitor_and_restart_mobile.py
 ~~~
 
+Step 4: Run Circular Walking
+~~~
+cd [The location you saved this code]
+Python3 Circular_Walking.py
+~~~
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -3,7 +3,7 @@ Multi Robot System is to complement with object detection, navigation(still deve
 For example, if one robot find the cat, it will the signal to other two robot to stop and sending the final corridnate of cat back to PC.
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#Cicrular Walking
+# Circular Walking
 if you want to run this code. Please run the following commands. 
 
 Step 1: Open Terminal (Terminal 1), you need to ssh to minipuipper robot. 

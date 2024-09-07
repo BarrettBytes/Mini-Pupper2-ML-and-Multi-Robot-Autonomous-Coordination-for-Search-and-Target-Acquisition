@@ -51,8 +51,31 @@ ros2 launch mini_pupper_slam slam.launch.py
 ~~~
 
 # Navigation 
-Step 1: Open a terminal with Ctrl+Alt+T on remote PC. Run teleoperation node using the following command.
+Step 1: Open a terminal with Ctrl+Alt+T on remote PC. Run teleoperation node using the following command. (keyboard - teleoperation)
 ~~~
 . ~/ros2_ws/install/setup.bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ~~~
+
+Step 2: Open a terminal with Ctrl+Alt+T on remote PC. Use the following command to launch the map_saver_cli node in the nav2_map_server package to create map files. (save the map)
+
+The map file is saved in the directory where the map_saver_cli node is launched at.
+
+~~~
+. ~/ros2_ws/install/setup.bash
+ros2 run nav2_map_server map_saver_cli -f ~/map
+~~~
+
+After running the above command, two files will be generated, namely map.pgm and map.yaml.
+
+The following pictures shows the .pgm file to be saved.
+
+![map2](https://github.com/user-attachments/assets/cefa9a20-2874-4e29-9cb4-6464db7a19bc)
+
+Step 3: Open a new terminal from Remote PC with Ctrl + Alt + T and launch the Navigation node.
+~~~
+. ~/ros2_ws/install/setup.bash
+ros2 launch mini_pupper_navigation navigation.launch.py map:=$HOME/map.yaml
+~~~
+
+The map used in navigation is two-dimensional Occupancy Grid Map (OGM). The white area is collision free area while black area is occupied and inaccessible area, and gray area represents the unknown area.

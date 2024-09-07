@@ -30,3 +30,34 @@ Python3 Circular Walking.py
 ~~~
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+# SLAM 
+if you want to run this code. Please run the following commands. 
+
+Step 1: Open Terminal (Terminal 1), you need to ssh to minipuipper robot. 
+~~~
+ssh ubuntu@[your_minipupper_id]
+~~~
+
+Step 2: bringup the robot to your PC.
+~~~
+. ~/ros2_ws/install/setup.bash # setup.zsh if you use zsh instead of bash
+ros2 launch mini_pupper_bringup bringup.launch.py
+~~~
+
+Step 3: Open a new terminal from Remote PC with Ctrl + Alt + T and launch the SLAM node. 
+~~~
+. ~/ros2_ws/install/setup.bash
+ros2 launch mini_pupper_slam slam.launch.py
+~~~
+
+# Navigation 
+Step 1: 
+
+    Open a terminal with Ctrl+Alt+T on remote PC.
+
+    Run teleoperation node using the following command.
+
+~~~
+. ~/ros2_ws/install/setup.bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
+~~~

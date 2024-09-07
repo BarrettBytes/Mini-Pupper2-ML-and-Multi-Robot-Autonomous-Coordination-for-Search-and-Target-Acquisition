@@ -15,3 +15,5 @@
 ## Run SLAM_and_Navigation.md
 
 [SLAM_and_Navigation.md](SLAM_and_Navigation.md)
+
+stop battery sound:  sudo systemctl stop battery_monitor 

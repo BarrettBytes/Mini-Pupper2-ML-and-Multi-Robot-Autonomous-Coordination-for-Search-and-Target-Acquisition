@@ -51,12 +51,7 @@ ros2 launch mini_pupper_slam slam.launch.py
 ~~~
 
 # Navigation 
-Step 1: 
-
-    Open a terminal with Ctrl+Alt+T on remote PC.
-
-    Run teleoperation node using the following command.
-
+Step 1: Open a terminal with Ctrl+Alt+T on remote PC. Run teleoperation node using the following command.
 ~~~
 . ~/ros2_ws/install/setup.bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard

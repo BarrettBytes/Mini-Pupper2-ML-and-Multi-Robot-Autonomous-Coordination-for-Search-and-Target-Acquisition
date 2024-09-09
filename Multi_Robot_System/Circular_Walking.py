@@ -1,5 +1,3 @@
-# Circlar Walking 
-
 """
 The goal of this script is to implement the object detection and circular walking for minipupper 2 robot. 
 

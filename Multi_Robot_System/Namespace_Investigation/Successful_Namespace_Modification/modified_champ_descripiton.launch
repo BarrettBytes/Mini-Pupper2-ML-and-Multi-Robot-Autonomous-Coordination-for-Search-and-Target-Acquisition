@@ -1,0 +1,18 @@
+<launch>
+    <!-- Add a namespace argument -->
+    <arg name="namespace" default="robotx"/>
+
+    <arg name="description_name"           default="robot_description"/>
+    <arg name="description_file"           default="$(find champ_description)/urdf/champ.urdf"/>
+
+    <param name="$(arg description_name)" textfile="$(arg description_file)"/>
+
+    <group ns="$(arg namespace)">  <!-- Enclose the node within a namespace -->
+        <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen">
+            <param name="use_tf_static"     value="false"/>
+            <param name="publish_frequency" value="200"/>
+            <param name="ignore_timestamp" value="true"/>
+            <remap from="robot_description" to="$(arg description_name)"/>
+        </node>
+    </group>
+</launch>

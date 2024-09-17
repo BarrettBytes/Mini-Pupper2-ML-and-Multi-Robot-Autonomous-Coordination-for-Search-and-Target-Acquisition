@@ -1,6 +1,0 @@
-Current Pr test
-using . ~/ros2_ws/src/install/setup.bash instead on mini due to an install bug, probably my fault
-PR here
-https://github.com/mangdangroboticsclub/mini_pupper_ros/pull/90/files#diff-83a2274e11d54d5709dc3f3985fded19072ca6e79a21bda0fdfdf8b6f0a7ce3c
-Cullen's ReadME
-https://github.com/mangdangroboticsclub/mini_pupper_ros/blob/667e8ebb988c86924dec6c22d51149c3711c800e/README.md

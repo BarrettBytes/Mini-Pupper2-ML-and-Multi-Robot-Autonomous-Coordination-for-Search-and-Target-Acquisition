@@ -1,0 +1,145 @@
+robotx:
+  amcl:
+    ros__parameters:
+      use_sim_time: True
+      base_frame_id: "base_link"  # Robot-specific base link
+      odom_frame_id: "odom"  # Robot-specific odometry topic
+      scan_topic: "scan"  # Robot-specific scan topic
+      global_frame_id: "map"  # Global map frame
+      max_particles: 2000
+      min_particles: 500
+      set_initial_pose: True
+      initial_pose:
+        x: 0.0
+        y: 0.0
+        yaw: 0.0
+
+  amcl_map_client:
+    ros__parameters:
+      use_sim_time: True
+
+  bt_navigator:
+    ros__parameters:
+      use_sim_time: True
+      global_frame: "map"
+      robot_base_frame: "base_link"
+      odom_topic: "odom"
+      bt_loop_duration: 10
+      default_server_timeout: 20
+      enable_groot_monitoring: True
+      plugin_lib_names:
+        - nav2_compute_path_to_pose_action_bt_node
+        - nav2_follow_path_action_bt_node
+        - nav2_spin_action_bt_node
+        - nav2_wait_action_bt_node
+
+  controller_server:
+    ros__parameters:
+      use_sim_time: True
+      base_frame_id: "base_link"
+      odom_frame_id: "odom"
+      controller_frequency: 20.0
+      progress_checker_plugin: "progress_checker"
+      goal_checker_plugins: ["general_goal_checker"]
+      controller_plugins: ["FollowPath"]
+
+      progress_checker:
+        plugin: "nav2_controller::SimpleProgressChecker"
+        required_movement_radius: 0.5
+        movement_time_allowance: 10.0
+
+      general_goal_checker:
+        stateful: True
+        plugin: "nav2_controller::SimpleGoalChecker"
+        xy_goal_tolerance: 0.25
+        yaw_goal_tolerance: 0.25
+
+      FollowPath:
+        plugin: "dwb_core::DWBLocalPlanner"
+        max_vel_x: 0.4
+        max_vel_theta: 0.75
+
+  local_costmap:
+    local_costmap:
+      ros__parameters:
+        global_frame: "odom"
+        robot_base_frame: "base_link"
+        rolling_window: true
+        width: 3
+        height: 3
+        resolution: 0.05
+        plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+        
+        # Obstacle Layer with Sensor Subscriptions
+        obstacle_layer:
+          plugin: "nav2_costmap_2d::ObstacleLayer"
+          observation_sources: foot_scan lidar_scan
+          foot_scan:
+            topic: "foot"  # Foot topic subscription for obstacle detection
+            max_obstacle_height: 2.0
+            clearing: True
+            marking: True
+            data_type: "LaserScan"
+          lidar_scan:
+            topic: "scan"  # Lidar scan for obstacle detection
+            max_obstacle_height: 2.0
+            clearing: True
+            marking: True
+            data_type: "LaserScan"
+
+        inflation_layer:
+          plugin: "nav2_costmap_2d::InflationLayer"
+          inflation_radius: 0.55
+
+  global_costmap:
+    global_costmap:
+      ros__parameters:
+        global_frame: "map"
+        robot_base_frame: "base_link"
+        resolution: 0.05
+        track_unknown_space: true
+        plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+
+        # Obstacle Layer with Sensor Subscriptions
+        obstacle_layer:
+          plugin: "nav2_costmap_2d::ObstacleLayer"
+          observation_sources: foot_scan lidar_scan
+          foot_scan:
+            topic: "foot"  # Foot topic subscription for global costmap
+            max_obstacle_height: 2.0
+            clearing: True
+            marking: True
+            data_type: "LaserScan"
+          lidar_scan:
+            topic: "scan"  # Lidar scan for global costmap
+            max_obstacle_height: 2.0
+            clearing: True
+            marking: True
+            data_type: "LaserScan"
+
+        inflation_layer:
+          plugin: "nav2_costmap_2d::InflationLayer"
+          inflation_radius: 0.55
+
+  map_server:
+    ros__parameters:
+      use_sim_time: True
+      yaml_filename: "map.yaml"
+
+  planner_server:
+    ros__parameters:
+      use_sim_time: True
+      planner_plugins: ["GridBased"]
+      GridBased:
+        plugin: "nav2_navfn_planner/NavfnPlanner"
+        tolerance: 0.5
+        allow_unknown: true
+
+  recoveries_server:
+    ros__parameters:
+      global_frame: "odom"
+      robot_base_frame: "base_link"
+
+  robot_state_publisher:
+    ros__parameters:
+      use_sim_time: True
